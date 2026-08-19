@@ -6,5 +6,5 @@ import react from "@vitejs/plugin-react";
 // editar isso manualmente com o nome do seu repositório.
 export default defineConfig({
   plugins: [react()],
-  base: "./",
+  base: '/Painel-de-Contratos/',
 });
