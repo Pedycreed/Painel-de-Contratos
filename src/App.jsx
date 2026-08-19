@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import {
   LayoutDashboard, Users, FileText, Wallet, Search, Plus, X, Pencil, Trash2,
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Clock, TrendingUp,
-  Save, ArrowUpRight, Filter, ChevronDown, LogOut, Upload
+  Save, ArrowUpRight, Filter, ChevronDown, LogOut, Upload, MessageSquare
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -11,6 +11,7 @@ import {
 import { supabase } from "./lib/supabase";
 import Login from "./Login.jsx";
 import ImportContractModal from "./ImportContract.jsx";
+import WhatsappDispatcher from "./WhatsappDispatcher.jsx";
 
 /* ============================== DESIGN TOKENS ============================== */
 const T = {
@@ -440,6 +441,13 @@ export default function App() {
             onRemove={removeReceb}
           />
         )}
+        {page === "whatsapp" && (
+          <WhatsappDispatcher 
+            onBack={() => setPageNav("dashboard")} 
+            clients={clients}
+            onSaveClient={saveClient}
+          />
+        )}
       </main>
     </div>
   );
@@ -452,6 +460,7 @@ function Sidebar({ page, setPage, counts, onSignOut }) {
     { id: "clientes", label: "Clientes", Icon: Users, count: counts.clients },
     { id: "contratos", label: "Contratos", Icon: FileText, count: counts.contracts },
     { id: "recebimentos", label: "Recebimentos", Icon: Wallet },
+    { id: "whatsapp", label: "WhatsApp", Icon: MessageSquare },
   ];
   return (
     <aside className="w-60 shrink-0 flex flex-col py-6 px-4" style={{ backgroundColor: T.ink }}>
@@ -778,7 +787,7 @@ function ClientesPage({ clients, contracts, onSave, onRemove }) {
         <table className="w-full text-sm">
           <thead>
             <tr style={{ backgroundColor: T.paper }}>
-              {["Operadora", "Tipo", "CPF/CNPJ", "Contato", "Cidade/UF", "Contratos", ""].map((h) => (
+              {["Operadora", "Tipo", "CPF/CNPJ", "Contato", "Telefone", "Cidade/UF", "Contratos", ""].map((h) => (
                 <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: T.inkSoft }}>
                   {h}
                 </th>
@@ -786,44 +795,67 @@ function ClientesPage({ clients, contracts, onSave, onRemove }) {
             </tr>
           </thead>
           <tbody>
-            {pageItems.map((c) => (
-              <tr key={c.id} className="border-t hover:bg-black/[0.02]" style={{ borderColor: T.line }}>
-                <td className="px-4 py-2.5 font-medium" style={{ color: T.ink }}>
-                  {c.operadora}
-                </td>
-                <td className="px-4 py-2.5" style={{ color: T.inkSoft }}>
-                  {c.tipoPessoa === "Pessoa Jurídica" ? "PJ" : "PF"}
-                </td>
-                <td className="px-4 py-2.5" style={{ fontFamily: FONT_MONO, color: T.inkSoft, fontSize: 12 }}>
-                  {c.cpfCnpj}
-                </td>
-                <td className="px-4 py-2.5" style={{ color: T.ink }}>
-                  <div>{c.nomeContato}</div>
-                  <div className="text-[11px]" style={{ color: T.inkSoft }}>
-                    {c.email}
-                  </div>
-                </td>
-                <td className="px-4 py-2.5" style={{ color: T.inkSoft }}>
-                  {c.cidade}/{c.estado}
-                </td>
-                <td className="px-4 py-2.5" style={{ fontFamily: FONT_MONO, color: T.ink }}>
-                  {contractCountByClient[c.id] || 0}
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => openEdit(c)} className="p-1.5 rounded-md hover:bg-black/5">
-                      <Pencil size={14} color={T.inkSoft} />
-                    </button>
-                    <button onClick={() => setDeleting(c)} className="p-1.5 rounded-md hover:bg-black/5">
-                      <Trash2 size={14} color={T.red} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {pageItems.map((c) => {
+              const whatsappLink = c.telefone 
+                ? `https://wa.me/55${c.telefone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${c.nomeContato}, tudo bem?`)}`
+                : "#";
+              return (
+                <tr key={c.id} className="border-t hover:bg-black/[0.02]" style={{ borderColor: T.line }}>
+                  <td className="px-4 py-2.5 font-medium" style={{ color: T.ink }}>
+                    {c.operadora}
+                  </td>
+                  <td className="px-4 py-2.5" style={{ color: T.inkSoft }}>
+                    {c.tipoPessoa === "Pessoa Jurídica" ? "PJ" : "PF"}
+                  </td>
+                  <td className="px-4 py-2.5" style={{ fontFamily: FONT_MONO, color: T.inkSoft, fontSize: 12 }}>
+                    {c.cpfCnpj}
+                  </td>
+                  <td className="px-4 py-2.5" style={{ color: T.ink }}>
+                    <div>{c.nomeContato}</div>
+                    <div className="text-[11px]" style={{ color: T.inkSoft }}>
+                      {c.email}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {c.telefone ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono" style={{ color: T.inkSoft }}>{c.telefone}</span>
+                        <a
+                          href={whatsappLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-md hover:bg-green-100"
+                          title="Enviar WhatsApp"
+                        >
+                          <MessageSquare size={14} color={T.green} />
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="text-xs" style={{ color: T.inkSoft }}>—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5" style={{ color: T.inkSoft }}>
+                    {c.cidade}/{c.estado}
+                  </td>
+                  <td className="px-4 py-2.5" style={{ fontFamily: FONT_MONO, color: T.ink }}>
+                    {contractCountByClient[c.id] || 0}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1 justify-end">
+                      <button onClick={() => openEdit(c)} className="p-1.5 rounded-md hover:bg-black/5">
+                        <Pencil size={14} color={T.inkSoft} />
+                      </button>
+                      <button onClick={() => setDeleting(c)} className="p-1.5 rounded-md hover:bg-black/5">
+                        <Trash2 size={14} color={T.red} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {pageItems.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-sm" style={{ color: T.inkSoft }}>
+                <td colSpan={8} className="text-center py-10 text-sm" style={{ color: T.inkSoft }}>
                   Nenhum cliente encontrado.
                 </td>
               </tr>
